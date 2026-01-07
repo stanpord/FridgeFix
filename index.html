@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FridgeFix Pro - AI Kitchen Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap');
+        body { font-family: 'Quicksand', sans-serif; background-color: #fffaf0; -webkit-tap-highlight-color: transparent; }
+        
+        .toggle-bg { background-color: #e5e7eb; transition: background-color 0.3s; }
+        .toggle-dot { transform: translateX(0); transition: transform 0.3s, background-color 0.3s; }
+        input:checked + .toggle-bg { background-color: #ffedd5; border: 1px solid #fed7aa; }
+        input:checked + .toggle-bg + .toggle-dot { transform: translateX(100%); background-color: #f97316; }
+        .btn-active:active { transform: scale(0.96); }
+        
+        /* Advanced Cooking Animation */
+        @keyframes stir {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(5px, -5px) rotate(10deg); }
+            50% { transform: translate(0, -10px) rotate(0deg); }
+            75% { transform: translate(-5px, -5px) rotate(-10deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+        
+        @keyframes steam {
+            0% { transform: translateY(0) scale(1); opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { transform: translateY(-40px) scale(1.5); opacity: 0; }
+        }
+
+        .chef-hat {
+            display: inline-block;
+            animation: stir 2s infinite ease-in-out;
+            font-size: 4rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .steam-bubble {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.5rem;
+            animation: steam 2s infinite ease-out;
+            z-index: 5;
+        }
+
+        .smiley-bounce {
+            display: inline-block;
+            animation: bounce 0.8s infinite alternate cubic-bezier(0.455, 0.03, 0.515, 0.955);
+        }
+        .smiley-delay-1 { animation-delay: 0.2s; }
+        .smiley-delay-2 { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            from { transform: translateY(0) scale(1); }
+            to { transform: translateY(-20px) scale(1.1); }
+        }
+
+        .modal-overlay { background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+        .brand-text { color: #f97316; }
+        .input-slide-in { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* Loading shimmer for the background box */
+        .loading-card {
+            background: linear-gradient(110deg, #ffffff 8%, #fff7ed 18%, #ffffff 33%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite linear;
+        }
+        @keyframes shimmer {
+            to { background-position-x: -200%; }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Header -->
+    <nav class="bg-white shadow-sm p-4 sticky top-0 z-50">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold brand-text"><i class="fas fa-utensils mr-2"></i>FridgeFix</h1>
+            <button onclick="openProModal()" class="bg-gradient-to-r from-orange-400 to-pink-500 text-white text-[10px] px-3 py-1.5 rounded-full font-bold uppercase tracking-wider shadow-lg btn-active">
+                <i class="fas fa-crown mr-1"></i> Go Pro
+            </button>
+        </div>
+    </nav>
+
+    <main id="app-container" class="max-w-md mx-auto px-4 pt-4 pb-20">
+        
+        <!-- Input Section -->
+        <section id="input-section" class="space-y-6">
+            <div class="bg-white rounded-3xl p-6 shadow-xl border border-orange-50">
+                <h2 class="text-xl font-bold text-gray-800 mb-1">Dinner Decision Maker</h2>
+                <p class="text-sm text-gray-500 mb-6">Type ingredients or use the camera.</p>
+                
+                <!-- Vision Trigger -->
+                <div class="mb-6">
+                    <div id="image-preview-container" class="hidden mb-4 relative">
+                        <img id="image-preview" class="w-full h-48 object-cover rounded-2xl border-4 border-white shadow-md">
+                        <button onclick="clearImage()" class="absolute -top-2 -right-2 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg border-2 border-white flex items-center justify-center"><i class="fas fa-times"></i></button>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="document.getElementById('camera-input').click()" class="bg-orange-50 border-2 border-orange-100 rounded-2xl py-6 flex flex-col items-center justify-center text-orange-600 btn-active transition-all">
+                            <i class="fas fa-camera text-2xl mb-1"></i>
+                            <span class="text-[10px] font-bold uppercase tracking-widest">Camera</span>
+                            <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden" onchange="processImage(this)">
+                        </button>
+                        <button onclick="document.getElementById('gallery-input').click()" class="bg-gray-50 border-2 border-gray-100 rounded-2xl py-6 flex flex-col items-center justify-center text-gray-400 btn-active transition-all">
+                            <i class="fas fa-image text-2xl mb-1"></i>
+                            <span class="text-[10px] font-bold uppercase tracking-widest">Gallery</span>
+                            <input type="file" id="gallery-input" accept="image/*" class="hidden" onchange="processImage(this)">
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Text Inputs List -->
+                <div id="ingredients-list" class="space-y-3 mb-4">
+                    <div class="flex items-center space-x-2">
+                        <input type="text" placeholder="Main item (e.g. Chicken)" class="ingredient-input w-full p-4 rounded-xl bg-gray-50 border-none outline-none focus:ring-2 focus:ring-orange-300 text-sm">
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" placeholder="Veggie (e.g. Broccoli)" class="ingredient-input w-full p-4 rounded-xl bg-gray-50 border-none outline-none focus:ring-2 focus:ring-orange-300 text-sm">
+                    </div>
+                </div>
+
+                <!-- Add Button -->
+                <button onclick="addIngredientField()" class="mb-8 flex items-center text-orange-500 font-bold text-xs bg-orange-50 px-4 py-2 rounded-full hover:bg-orange-100 transition btn-active">
+                    <i class="fas fa-plus-circle mr-2"></i> Add Another
+                </button>
+
+                <div class="flex items-center justify-between mb-8 px-2">
+                    <span class="text-sm font-medium text-gray-700">Kid-Friendly Mode</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="kid-friendly" class="sr-only" checked>
+                        <div class="toggle-bg w-11 h-6 rounded-full border border-gray-200"></div>
+                        <div class="toggle-dot absolute left-[2px] top-[2px] bg-white w-5 h-5 rounded-full shadow-sm border border-gray-100"></div>
+                    </label>
+                </div>
+
+                <button id="generate-btn" onclick="generateRecipe()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-5 rounded-2xl shadow-lg flex justify-center items-center btn-active transition-all">
+                    <span>Fix My Dinner</span>
+                    <i class="fas fa-magic ml-3"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Loading View -->
+        <div id="loading" class="hidden py-16 px-6 text-center rounded-3xl loading-card border-2 border-orange-100 shadow-inner">
+            <div class="relative mb-10 h-24 flex items-center justify-center">
+                <span class="chef-hat">👨‍🍳</span>
+                <span class="steam-bubble" style="animation-delay: 0s">♨️</span>
+                <span class="steam-bubble" style="animation-delay: 0.7s">💨</span>
+            </div>
+            <p class="text-orange-600 font-bold uppercase tracking-widest text-sm mb-8">Chef Gemini is mixing ingredients...</p>
+            <div class="flex justify-center space-x-6 text-3xl">
+                <span class="smiley-bounce">😊</span>
+                <span class="smiley-bounce smiley-delay-1">😋</span>
+                <span class="smiley-bounce smiley-delay-2">🍳</span>
+            </div>
+        </div>
+
+        <!-- Recipe Results -->
+        <section id="recipe-section" class="hidden">
+            <div class="bg-white rounded-3xl p-6 shadow-xl border-t-8 border-orange-500 mb-8">
+                <div id="recipe-content"></div>
+                <div class="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between">
+                    <button onclick="shareRecipe()" class="flex items-center space-x-2 text-orange-500 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl btn-active">
+                        <i class="fas fa-paper-plane"></i>
+                        <span>Share Recipe</span>
+                    </button>
+                    <button onclick="location.reload()" class="text-xs text-gray-400 underline uppercase font-bold">New Dish</button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- PRO MODAL -->
+    <div id="pro-modal" class="hidden fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-6">
+        <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div class="bg-gradient-to-br from-orange-400 to-pink-500 p-8 text-center text-white relative">
+                <i class="fas fa-crown text-5xl mb-4"></i>
+                <h3 class="text-2xl font-bold text-white">FridgeFix Pro</h3>
+                <p class="text-orange-100 text-sm mt-2 font-medium">Infinite dinner fixes for your kitchen.</p>
+            </div>
+            <div class="p-6 space-y-4">
+                <button onclick="redirectToStripe()" class="w-full bg-gray-900 text-white font-bold py-4 rounded-2xl mt-4 shadow-lg btn-active">
+                    Unlock Now for $4.99/mo
+                </button>
+                <button onclick="closeProModal()" class="w-full text-gray-400 text-xs font-bold uppercase">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="shrink-canvas" class="hidden"></canvas>
+
+    <script type="module">
+        /**
+         * IMPORTANT: 
+         * 1. In this environment, apiKey MUST be "" to use the provided runtime key.
+         * 2. If deploying externally, paste your key between the quotes.
+         */
+        const apiKey = ""; 
+        const stripeLink = "https://buy.stripe.com/test_8x27sM8K17Q6eyc8IBeEo00";
+        const modelName = "gemini-2.5-flash-preview-09-2025";
+        
+        let base64Image = null;
+        let lastRecipe = null;
+
+        window.openProModal = () => document.getElementById('pro-modal').classList.remove('hidden');
+        window.closeProModal = () => document.getElementById('pro-modal').classList.add('hidden');
+        window.redirectToStripe = () => window.location.href = stripeLink;
+
+        window.addIngredientField = () => {
+            const container = document.getElementById('ingredients-list');
+            const count = container.querySelectorAll('.ingredient-input').length + 1;
+            const div = document.createElement('div');
+            div.className = "flex items-center space-x-2 input-slide-in mb-3";
+            div.innerHTML = `
+                <input type="text" placeholder="Ingredient ${count}" class="ingredient-input w-full p-4 rounded-xl bg-gray-50 border-none outline-none focus:ring-2 focus:ring-orange-300 text-sm">
+                <button onclick="this.parentElement.remove()" class="text-gray-300 hover:text-red-400 p-2"><i class="fas fa-times"></i></button>
+            `;
+            container.appendChild(div);
+        };
+
+        window.processImage = (input) => {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.getElementById('shrink-canvas');
+                        const ctx = canvas.getContext('2d');
+                        let w = img.width, h = img.height, max = 500;
+                        if (w > h) { if (w > max) { h *= max/w; w = max; } }
+                        else { if (h > max) { w *= max/h; h = max; } }
+                        canvas.width = w; canvas.height = h;
+                        ctx.drawImage(img, 0, 0, w, h);
+                        const compressed = canvas.toDataURL('image/jpeg', 0.5);
+                        document.getElementById('image-preview').src = compressed;
+                        document.getElementById('image-preview-container').classList.remove('hidden');
+                        base64Image = compressed.split(',')[1];
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        };
+
+        window.clearImage = () => {
+            document.getElementById('image-preview-container').classList.add('hidden');
+            base64Image = null;
+            document.getElementById('camera-input').value = "";
+            document.getElementById('gallery-input').value = "";
+        };
+
+        window.generateRecipe = async function() {
+            const inputs = document.querySelectorAll('.ingredient-input');
+            const ingredients = Array.from(inputs).map(i => i.value.trim()).filter(v => v !== "");
+            const isKid = document.getElementById('kid-friendly').checked;
+
+            if(ingredients.length === 0 && !base64Image) return alert("Add an ingredient first!");
+
+            document.getElementById('input-section').classList.add('hidden');
+            document.getElementById('loading').classList.remove('hidden');
+
+            const systemPrompt = "You are a world-class chef helping tired parents. Always respond with a valid JSON object containing: 'title', 'time', 'pantry' (array of strings), and 'steps' (array of strings). Do not include any text outside the JSON.";
+            const userPrompt = `Create a kid-friendly recipe using: ${ingredients.join(', ')}. ${isKid ? 'Ensure child-safe textures and mild flavors.' : ''} If an image is provided, identify ingredients from it. Response MUST be JSON only.`;
+
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: userPrompt },
+                        ...(base64Image ? [{ inlineData: { mimeType: "image/jpeg", data: base64Image } }] : [])
+                    ]
+                }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json"
+                }
+            };
+
+            const callApiWithBackoff = async (attempt = 0) => {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorJson = await response.json();
+                        if ((response.status === 429 || response.status >= 500) && attempt < 5) {
+                            const delay = Math.pow(2, attempt) * 1000;
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            return callApiWithBackoff(attempt + 1);
+                        }
+                        throw new Error(`Status ${response.status}: ${JSON.stringify(errorJson)}`);
+                    }
+                    return response;
+                } catch (err) {
+                    if (attempt < 5) {
+                        const delay = Math.pow(2, attempt) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return callApiWithBackoff(attempt + 1);
+                    }
+                    throw err;
+                }
+            };
+
+            try {
+                const response = await callApiWithBackoff();
+                const data = await response.json();
+                
+                if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    throw new Error("No response from AI brain.");
+                }
+
+                const text = data.candidates[0].content.parts[0].text;
+                const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                
+                lastRecipe = JSON.parse(cleanJson);
+                renderRecipe(lastRecipe);
+            } catch (err) {
+                console.error("FridgeFix Error:", err);
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('input-section').classList.remove('hidden');
+                alert("Chef's kitchen is a bit messy right now. Let's try again!");
+            }
+        };
+
+        function renderRecipe(recipe) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('recipe-section').classList.remove('hidden');
+            
+            const stepsHtml = recipe.steps.map((s, idx) => `
+                <div class="flex items-start mb-4">
+                    <span class="flex-shrink-0 w-6 h-6 bg-orange-500 text-white rounded-lg flex items-center justify-center text-[10px] font-bold mr-3 mt-0.5">${idx+1}</span>
+                    <p class="text-sm text-gray-700 leading-relaxed pt-0.5">${s}</p>
+                </div>
+            `).join('');
+
+            const pantryHtml = (recipe.pantry && recipe.pantry.length > 0) ? `
+                <div class="mb-6">
+                    <p class="text-[9px] uppercase font-bold text-gray-400 mb-3 tracking-[0.2em] text-left">Check Pantry For</p>
+                    <div class="flex flex-wrap gap-2 text-left">
+                        ${recipe.pantry.map(p => `<span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-md text-[10px] font-bold uppercase">${p}</span>`).join('')}
+                    </div>
+                </div>
+            ` : '';
+
+            document.getElementById('recipe-content').innerHTML = `
+                <h3 class="text-3xl font-bold text-gray-800 mb-2 leading-tight">${recipe.title}</h3>
+                <div class="text-orange-600 font-extrabold mb-6 text-xs uppercase tracking-widest">
+                    <i class="fas fa-clock mr-1"></i> Ready in ${recipe.time}
+                </div>
+                ${pantryHtml}
+                <div class="text-left">
+                    <p class="text-[9px] uppercase font-bold text-gray-400 mb-4 tracking-[0.2em]">Instructions</p>
+                    ${stepsHtml}
+                </div>`;
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.shareRecipe = () => {
+            if (!lastRecipe) return;
+            const shareText = `Check out this ${lastRecipe.title} from FridgeFix!\n\nInstructions:\n${lastRecipe.steps.join('\n')}`;
+            if (navigator.share) {
+                navigator.share({ title: lastRecipe.title, text: shareText });
+            } else {
+                const tempInput = document.createElement("textarea");
+                tempInput.value = shareText;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand("copy");
+                document.body.removeChild(tempInput);
+                alert("Recipe copied to clipboard!");
+            }
+        };
+    </script>
+</body>
+</html>
