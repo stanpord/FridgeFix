@@ -1,1 +1,1 @@
-# FridgeFix
+# MealMagic 
