@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FridgeFix Ultimate</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap');
+        body { font-family: 'Quicksand', sans-serif; background-color: #fffaf0; -webkit-tap-highlight-color: transparent; }
+        .toggle-bg { background-color: #e5e7eb; transition: background-color 0.3s; }
+        .toggle-dot { transform: translateX(0); transition: transform 0.3s, background-color 0.3s; }
+        input:checked + .toggle-bg { background-color: #ffedd5; border: 1px solid #fed7aa; }
+        input:checked + .toggle-bg + .toggle-dot { transform: translateX(100%); background-color: #f97316; }
+        .loading-shimmer {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .btn-active:active { transform: scale(0.96); }
+        .input-slide-in { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <nav class="bg-white shadow-sm p-4 sticky top-0 z-50">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-orange-500"><i class="fas fa-utensils mr-2"></i>FridgeFix</h1>
+            <div class="text-right">
+                <span class="text-[9px] bg-orange-500 text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Ultimate v2.8</span>
+            </div>
+        </div>
+    </nav>
+
+    <main id="app-container" class="max-w-md mx-auto px-4 pt-4 pb-12">
+        <div id="input-section" class="space-y-6">
+            <div class="bg-white rounded-3xl p-6 shadow-xl border border-orange-50">
+                <h2 class="text-xl font-bold text-gray-800 mb-1">Kitchen Magic</h2>
+                <p class="text-sm text-gray-500 mb-6">What's in your fridge tonight?</p>
+                
+                <!-- Vision UI -->
+                <div class="mb-6">
+                    <div id="image-preview-container" class="hidden mb-4 relative">
+                        <img id="image-preview" class="w-full h-48 object-cover rounded-2xl border-4 border-white shadow-md">
+                        <button onclick="clearImage()" class="absolute -top-2 -right-2 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg border-2 border-white"><i class="fas fa-times"></i></button>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="document.getElementById('camera-input').click()" class="bg-orange-50 border-2 border-orange-100 rounded-2xl py-6 flex flex-col items-center justify-center text-orange-600 btn-active transition-all">
+                            <i class="fas fa-camera text-2xl mb-1"></i>
+                            <span class="text-[10px] font-bold uppercase">Camera</span>
+                            <input type="file" id="camera-input" accept="image/*" class="hidden" onchange="processImage(this)">
+                        </button>
+                        <button onclick="document.getElementById('gallery-input').click()" class="bg-gray-50 border-2 border-gray-100 rounded-2xl py-6 flex flex-col items-center justify-center text-gray-400 btn-active transition-all">
+                            <i class="fas fa-image text-2xl mb-1"></i>
+                            <span class="text-[10px] font-bold uppercase">Gallery</span>
+                            <input type="file" id="gallery-input" accept="image/*" class="hidden" onchange="processImage(this)">
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Dynamic Ingredients -->
+                <div id="ingredients-list" class="space-y-3 mb-4">
+                    <div class="flex items-center space-x-2">
+                        <input type="text" placeholder="Ingredient 1 (e.g. Chicken)" class="ingredient-input w-full p-4 rounded-xl bg-gray-50 border-none outline-none focus:ring-2 focus:ring-orange-300 text-sm">
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" placeholder="Ingredient 2 (e.g. Spinach)" class="ingredient-input w-full p-4 rounded-xl bg-gray-50 border-none outline-none focus:ring-2 focus:ring-orange-300 text-sm">
+                    </div>
+                </div>
+
+                <button onclick="addIngredientField()" class="mb-8 flex items-center text-orange-500 font-bold text-xs bg-orange-50 px-4 py-2 rounded-full hover:bg-orange-100 transition btn-active">
+                    <i class="fas fa-plus-circle mr-2"></i> Add More
+                </button>
+
+                <!-- Toggle -->
+                <div class="flex items-center justify-between mb-8 px-2">
+                    <span class="text-sm font-bold text-gray-700">Kid-Friendly Mode</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="kid-friendly" class="sr-only" checked>
+                        <div class="toggle-bg w-11 h-6 rounded-full border border-gray-200"></div>
+                        <div class="toggle-dot absolute left-[2px] top-[2px] bg-white w-5 h-5 rounded-full shadow-sm border border-gray-100"></div>
+                    </label>
+                </div>
+
+                <button id="generate-btn" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-5 rounded-2xl shadow-lg flex justify-center items-center btn-active transition-all">
+                    <span>Fix My Dinner</span>
+                    <i class="fas fa-magic ml-3"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="hidden py-12 text-center">
+            <div class="flex justify-center space-x-2 mb-6 text-orange-400">
+                <i class="fas fa-circle-notch fa-spin text-3xl"></i>
+            </div>
+            <p class="text-orange-500 font-bold animate-pulse text-sm uppercase tracking-widest">Chef is inventing a recipe...</p>
+        </div>
+
+        <!-- Recipe Display -->
+        <div id="recipe-section" class="hidden">
+            <div class="bg-white rounded-3xl p-6 shadow-xl border-t-8 border-orange-500 mb-8">
+                <div id="recipe-content"></div>
+                
+                <!-- Action Row -->
+                <div class="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between">
+                    <button onclick="shareRecipe()" class="flex items-center space-x-2 text-orange-500 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl btn-active">
+                        <i class="fas fa-paper-plane"></i>
+                        <span>Send to Partner</span>
+                    </button>
+                    <div class="flex space-x-4">
+                        <button onclick="location.reload()" class="text-xs text-gray-400 underline uppercase font-bold tracking-widest">Reset</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <canvas id="shrink-canvas" class="hidden"></canvas>
+
+    <script type="module">
+        const apiKey = "AIzaSyB8WbLRM8uQFa-s4GHO7N6l8ocexoPdhHg";
+        let base64Image = null;
+        let lastGeneratedRecipe = null;
+
+        window.addIngredientField = () => {
+            const container = document.getElementById('ingredients-list');
+            const div = document.createElement('div');
+            div.className = "flex items-center space-x-2 input-slide-in";
+            div.innerHTML = `<input type="text" placeholder="More..." class="ingredient-input w-full p-4 rounded-xl bg-gray-50 border-none outline-none focus:ring-2 focus:ring-orange-300 text-sm">
+                             <button onclick="this.parentElement.remove()" class="text-gray-300 hover:text-red-400 p-2"><i class="fas fa-times"></i></button>`;
+            container.appendChild(div);
+        };
+
+        window.processImage = (input) => {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.getElementById('shrink-canvas');
+                        const ctx = canvas.getContext('2d');
+                        let w = img.width, h = img.height, max = 800;
+                        if (w > h) { if (w > max) { h *= max/w; w = max; } }
+                        else { if (h > max) { w *= max/h; h = max; } }
+                        canvas.width = w; canvas.height = h;
+                        ctx.drawImage(img, 0, 0, w, h);
+                        const compressed = canvas.toDataURL('image/jpeg', 0.6);
+                        document.getElementById('image-preview').src = compressed;
+                        document.getElementById('image-preview-container').classList.remove('hidden');
+                        base64Image = compressed.split(',')[1];
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        };
+
+        window.clearImage = () => {
+            document.getElementById('image-preview-container').classList.add('hidden');
+            base64Image = null;
+        };
+
+        window.generateRecipe = async function() {
+            const inputs = document.querySelectorAll('.ingredient-input');
+            const ingredientStrings = Array.from(inputs).map(input => input.value.trim()).filter(val => val !== "");
+            if(ingredientStrings.length === 0 && !base64Image) return alert("Add some ingredients first!");
+
+            document.getElementById('input-section').classList.add('hidden');
+            document.getElementById('loading').classList.remove('hidden');
+
+            const prompt = `Create a kid-friendly recipe for: ${ingredientStrings.join(', ')}. JSON format only: { "title": "...", "time": "...", "pantry": ["..."], "steps": ["..."] }`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }, ...(base64Image ? [{ inlineData: { mimeType: "image/jpeg", data: base64Image } }] : [])] }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    })
+                });
+                const data = await response.json();
+                lastGeneratedRecipe = JSON.parse(data.candidates[0].content.parts[0].text);
+                renderRecipe(lastGeneratedRecipe);
+            } catch (err) {
+                alert("Error! Refresh and try again.");
+                location.reload();
+            }
+        };
+
+        function renderRecipe(recipe) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('recipe-section').classList.remove('hidden');
+            document.getElementById('recipe-content').innerHTML = `
+                <h3 class="text-3xl font-bold text-gray-800 mb-2">${recipe.title}</h3>
+                <div class="text-orange-600 font-bold mb-8 text-xs tracking-widest uppercase">⏱ ${recipe.time}</div>
+                <div class="mb-8">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-3">Pantry Staples</p>
+                    <div class="flex flex-wrap gap-2">${recipe.pantry.map(p => `<span class="bg-gray-100 text-gray-600 px-2 py-1 rounded-md text-[10px] font-bold uppercase">${p}</span>`).join('')}</div>
+                </div>
+                <div class="space-y-6">${recipe.steps.map((s, idx) => `<div class="flex"><span class="flex-shrink-0 w-6 h-6 bg-orange-500 text-white rounded-lg flex items-center justify-center text-xs font-bold mr-4 mt-0.5">${idx+1}</span><p class="text-sm text-gray-700 leading-relaxed text-left">${s}</p></div>`).join('')}</div>`;
+        }
+
+        window.shareRecipe = async function() {
+            if (!lastGeneratedRecipe) return;
+            const text = `Hey! Check out this dinner idea from FridgeFix:\n\n🍴 ${lastGeneratedRecipe.title}\n⏱ Time: ${lastGeneratedRecipe.time}\n\n🛒 Pantry Staples: ${lastGeneratedRecipe.pantry.join(', ')}\n\n👩‍🍳 Steps:\n${lastGeneratedRecipe.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`;
+            
+            if (navigator.share) {
+                try { await navigator.share({ title: lastGeneratedRecipe.title, text: text }); } catch (e) {}
+            } else {
+                // Fallback: Copy to clipboard
+                const el = document.createElement('textarea');
+                el.value = text;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                alert("Recipe copied to clipboard! Paste it into a text message.");
+            }
+        };
+
+        document.getElementById('generate-btn').addEventListener('click', generateRecipe);
+    </script>
+</body>
+</html>
+
